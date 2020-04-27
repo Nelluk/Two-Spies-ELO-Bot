@@ -37,6 +37,7 @@ class Game(BaseModel):
     win_claimed_ts = DateTimeField(default=datetime.datetime.now)  # set when game is claimed/entered
     completed_ts = DateTimeField(null=True, default=None)  # set when game is confirmed and ELO is calculated
     name = TextField(null=True)
+    losing_score = SmallIntegerField(default=1, null=True)  # Score of losing player, so assumed to be 0, 1, or 2. Assumed that basically all ranked games are first to 3 (3-0, 3-1, 3-2)
     losing_player = ForeignKeyField(Player, null=False, backref='losing_player', on_delete='RESTRICT')
     winning_player = ForeignKeyField(Player, null=False, backref='winning_player', on_delete='RESTRICT')
     elo_change_winner = SmallIntegerField(default=0)
@@ -47,14 +48,18 @@ class Game(BaseModel):
             value = value.strip('\"').strip('\'').strip('”').strip('“').title()[:35].strip() if value else value
         return super().__setattr__(name, value)
 
-    def get_or_create_pending_game(winning_player, losing_player, name=None):
-        game, created = Game.get_or_create(winning_player=winning_player, losing_player=losing_player, is_confirmed=False, defaults={'name': name})
+    def get_or_create_pending_game(winning_player, losing_player, name=None, losing_score=None):
+        game, created = Game.get_or_create(winning_player=winning_player, losing_player=losing_player, is_confirmed=False, defaults={'name': name, 'losing_score': losing_score})
+        if created and losing_score is None:
+            # Attempted to input a game with no losing score - not allowed
+            game.delete_instance()
+            return None, False
         return game, created
 
     def confirm(self):
         # Calculate elo changes for a newly-confirmed game and write new values to database
         winner_delta = self.calc_elo_delta(for_winner=True)
-        loser_delta = self.calc_elo_delta(for_winner=True)
+        loser_delta = self.calc_elo_delta(for_winner=False)
 
         with db.atomic():
             self.winning_player.elo = int(self.winning_player.elo + winner_delta)
@@ -68,7 +73,7 @@ class Game(BaseModel):
             self.winning_player.save()
             self.losing_player.save()
             self.is_confirmed = True
-            self.completed_ts = datetime.datetime.now
+            self.completed_ts = datetime.datetime.now()
             self.save()
 
     def calc_elo_delta(self, for_winner=True):
@@ -80,14 +85,21 @@ class Game(BaseModel):
 
         # Calculate a base change of elo based on your chance of winning and whether or not you won
         if for_winner is True:
-            elo_delta = int(round((max_elo_delta * (1 - chance_of_winning(target_elo=self.winning_player.elo, opponent_elo=self.losing_player.elo))), 0))
+            elo = self.winning_player.elo
+            elo_delta = int(round((max_elo_delta * (1 - chance_of_winning(target_elo=elo, opponent_elo=self.losing_player.elo))), 0))
         else:
-            elo_delta = int(round((max_elo_delta * (0 - chance_of_winning(target_elo=self.losing_player.elo, opponent_elo=self.winning_player.elo))), 0))
+            elo = self.losing_player.elo
+            elo_delta = int(round((max_elo_delta * (0 - chance_of_winning(target_elo=elo, opponent_elo=self.winning_player.elo))), 0))
 
         elo_boost = .60 * ((1200 - max(min(elo, 1200), 900)) / 300)  # 60% boost to delta at elo 900, gradually shifts to 0% boost at 1200 ELO
 
         elo_bonus = int(abs(elo_delta) * elo_boost)
         elo_delta += elo_bonus
+
+        if self.losing_score == 0:
+            elo_delta = int(round(elo_delta * 1.15))  # larger delta for a 3-0 blowout
+        elif self.losing_score == 2:
+            elo_delta = int(round(elo_delta * 0.85))  # smaller delta for a 3-2 close game
 
         return elo_delta
 

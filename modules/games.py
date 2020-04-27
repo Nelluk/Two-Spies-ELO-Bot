@@ -78,11 +78,21 @@ class elo_games(commands.Cog):
         player.save()
 
     @commands.command(usage='@Opponent "Optional Game Name"', aliases=['loseto'])
-    async def defeat(self, ctx, *args):
+    async def defeat(self, ctx, *input_args):
         game_name = None
-
+        args = list(input_args)
         if not args:
-            return await ctx.send(f'**Usage:** `{ctx.prefix}{ctx.invoked_with} @Opponent "Optional Game Name"')
+            return await ctx.send(f'**Usage:** `{ctx.prefix}{ctx.invoked_with} @Opponent [Losing Score] "Optional Game Name"')
+
+        losing_score = None
+        for arg in args:
+            try:
+                if int(arg) in [0, 1, 2]:
+                    losing_score = int(arg)
+                    args.remove(arg)
+                    break
+            except ValueError:
+                pass  # arg is non-numeric
 
         guild_matches = await utilities.get_guild_member(ctx, args[0])
         if len(guild_matches) == 0:
@@ -108,7 +118,10 @@ class elo_games(commands.Cog):
             winning_player, _ = Player.get_or_create(discord_id=target_discord_member.id, defaults={'name': target_discord_member.display_name})
             confirm_win = True
 
-        game, created = Game.get_or_create_pending_game(winning_player=winning_player, losing_player=losing_player, name=game_name)
+        game, created = Game.get_or_create_pending_game(winning_player=winning_player, losing_player=losing_player, name=game_name, losing_score=losing_score)
+        if not game:
+            return await ctx.send(f'The loser player\'s score is required to calculate margin of victory. **Example:**: `{ctx.prefix}{ctx.invoked_with} @Nelluk 0` for a 3-0 game. Value must be 0, 1, or 2. '
+                'The score can be omitted if you are confirming a pending loss.')
 
         if not confirm_win:
             if not created:
@@ -118,7 +131,8 @@ class elo_games(commands.Cog):
                 f'Use `{ctx.prefix}loseto` <@{winning_player.discord_id}> to confirm loss.')
         else:
             game.confirm()
-            return await ctx.send(f'Game {game.id} has been confirmed with <@{winning_player.discord_id}> defeating <@{losing_player.discord_id}>. Good game! ')
+            return await ctx.send(f'Game {game.id} has been confirmed with <@{winning_player.discord_id}> ({winning_player.elo} +{game.elo_change_winner}) '
+                f'defeating <@{losing_player.discord_id}> ({losing_player.elo} {game.elo_change_loser}). Good game! ')
 
 
 def setup(bot):
