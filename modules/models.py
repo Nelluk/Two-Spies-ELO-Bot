@@ -1,6 +1,6 @@
 import datetime
 # import discord
-# import re
+import re
 # import psycopg2
 from peewee import *
 from playhouse.postgres_ext import *
@@ -26,7 +26,6 @@ class BaseModel(Model):
 class Player(BaseModel):
     discord_id = BitField(unique=True, null=False)
     name = TextField(unique=False)
-    nick = TextField(unique=False, null=True)
     elo = SmallIntegerField(default=1000)
     elo_max = SmallIntegerField(default=1000)
     is_banned = BooleanField(default=False)
