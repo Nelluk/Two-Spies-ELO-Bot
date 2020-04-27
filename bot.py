@@ -3,7 +3,6 @@ import argparse
 import traceback
 from discord.ext import commands
 from modules import models
-from modules import initialize_data
 from modules import utilities
 import settings
 import logging
@@ -60,26 +59,15 @@ logger = logging.getLogger('spiesbot.' + __name__)
 def main():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--add_default_data', action='store_true')
     parser.add_argument('--recalc_elo', action='store_true')
-    parser.add_argument('--game_export', action='store_true')
     parser.add_argument('--skip_tasks', action='store_true')
     args = parser.parse_args()
-    if args.add_default_data:
-        initialize_data.initialize_data()
-        exit(0)
     if args.recalc_elo:
         print('Recalculating all ELO')
         start = timer()
         models.Game.recalculate_all_elo()
         end = timer()
         print(f'Recalculation complete - took {end - start} seconds.')
-        exit(0)
-    if args.game_export:
-        print('Exporting game data to file')
-        start = timer()
-        utilities.export_game_data()
-        print(f'Recalculation complete - took {timer() - start} seconds.')
         exit(0)
     if args.skip_tasks:
         settings.run_tasks = False

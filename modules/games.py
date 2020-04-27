@@ -14,6 +14,7 @@ elo_logger = logging.getLogger('spiesbot.elo')
 
 class SpiesGame(commands.Converter):
     async def convert(self, ctx, game_id):
+        # allows a SpiesGame to be used as a parameter for a discord command, and get converted into a database object on the fly
 
         utilities.connect()
         try:
@@ -39,6 +40,7 @@ class elo_games(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_update(self, before, after):
+        # Listen for changes to member roles or display names and update database if any relevant changes detected
         player_query = Player.select().where(
             (Player.discord_id == after.id)
         )
@@ -74,6 +76,49 @@ class elo_games(commands.Cog):
             return
         player.display_name = after.display_name
         player.save()
+
+    @commands.command(usage='@Opponent "Optional Game Name"', aliases=['loseto'])
+    async def defeat(self, ctx, *args):
+        game_name = None
+
+        if not args:
+            return await ctx.send(f'**Usage:** `{ctx.prefix}{ctx.invoked_with} @Opponent "Optional Game Name"')
+
+        guild_matches = await utilities.get_guild_member(ctx, args[0])
+        if len(guild_matches) == 0:
+            return await ctx.send(f'Could not find any server member matching *{args[0]}*. Try specifying with an @Mention')
+        elif len(guild_matches) > 1:
+            return await ctx.send(f'Found {len(guild_matches)} server members matching *{args[0]}*. Try specifying with an @Mention')
+        target_discord_member = guild_matches[0]
+
+        if target_discord_member.id == ctx.author.id:
+            return await ctx.send('Stop beating yourself up.')
+
+        if len(args) > 1:
+            # Combine all args after the first one into a game name
+            game_name = ' '.join(args[1:])
+
+        if ctx.invoked_with == 'defeat':
+            winning_player, _ = Player.get_or_create(discord_id=ctx.author.id, defaults={'name': ctx.author.display_name})
+            losing_player, _ = Player.get_or_create(discord_id=target_discord_member.id, defaults={'name': target_discord_member.display_name})
+            confirm_win = False
+        else:
+            # invoked with 'loseto', so swap player targets and confirm the game in one step
+            losing_player, _ = Player.get_or_create(discord_id=ctx.author.id, defaults={'name': ctx.author.display_name})
+            winning_player, _ = Player.get_or_create(discord_id=target_discord_member.id, defaults={'name': target_discord_member.display_name})
+            confirm_win = True
+
+        game, created = Game.get_or_create_pending_game(winning_player=winning_player, losing_player=losing_player, name=game_name)
+
+        if not confirm_win:
+            if not created:
+                return await ctx.send(f'There is already an unconfirmed game with these two opponents. Game {game.id} must be confirmed or deleted before another game is entered.')
+
+            return await ctx.send(f'Game {game.id} created and waiting for defeated player <@{losing_player.discord_id}> to confirm loss. '
+                f'Use `{ctx.prefix}loseto` <@{winning_player.discord_id}> to confirm loss.')
+        else:
+            game.confirm()
+            return await ctx.send(f'Game {game.id} has been confirmed with <@{winning_player.discord_id}> defeating <@{losing_player.discord_id}>. Good game! ')
 
 
 def setup(bot):

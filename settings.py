@@ -1,4 +1,4 @@
-import modules.exceptions as exceptions
+# import modules.exceptions as exceptions
 import logging
 import datetime
 from discord.ext import commands
@@ -24,7 +24,7 @@ owner_id = 272510639124250625  # Nelluk
 bot = None
 run_tasks = True  # if set as False via command line option, tasks should check this and skip
 
-# bot invite URL https://discordapp.com/oauth2/authorize?client_id=484067640302764042&scope=bot
+# bot invite URL https://discordapp.com/oauth2/authorize?client_id=703986191254683728&scope=bot
 
 
 config = {'default':
@@ -63,7 +63,7 @@ def guild_setting(guild_id: int, setting_name: str):
             settings_obj = config[guild_id]
         except KeyError:
             logger.error(f'Unauthorized guild id {guild_id}.')
-            raise exceptions.CheckFailedError('Unauthorized: This guild is not in the config.ini file.')
+            # raise exceptions.CheckFailedError('Unauthorized: This guild is not in the config.ini file.')
 
         try:
             return settings_obj[setting_name]
