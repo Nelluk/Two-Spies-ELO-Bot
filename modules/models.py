@@ -132,6 +132,14 @@ class Game(BaseModel):
             self.losing_player.save()
             self.is_confirmed = True
             self.completed_ts = datetime.datetime.now()
+
+            for playergame in self.playergame:
+                if playergame.player == self.winning_player:
+                    playergame.elo_after_game = self.winning_player.elo
+                else:
+                    playergame.elo_after_game = self.losing_player.elo
+                playergame.save()
+
             self.save()
 
     def calc_elo_delta(self, for_winner=True):
@@ -161,10 +169,64 @@ class Game(BaseModel):
 
         return elo_delta
 
+    def reverse_confirmation(self):
+        # revert elo changes and return game to unconfirmed state
+        self.winning_player.elo += self.elo_change_winner * -1
+        self.winning_player.save()
+        self.elo_change_winner = 0
+
+        self.losing_player.elo += self.elo_change_loser * -1
+        self.losing_player.save()
+        self.elo_change_loser = 0
+
+        for playergame in self.playergame:
+            playergame.elo_after_game = None
+            playergame.save()
+
+        self.is_confirmed = False
+        self.completed_ts = None
+
+        self.save()
+
+    def delete_game(self):
+        # resets any relevant ELO changes to players and teams, deletes related lineup records, and deletes the game entry itself
+
+        logger.info(f'Deleting game {self.id}')
+        recalculate = False
+        with db.atomic():
+            if self.is_confirmed:
+                self.is_confirmed = False
+                recalculate = True
+                since = self.completed_ts
+
+                self.reverse_confirmation()
+
+            for playergame in self.playergame:
+                playergame.delete_instance()
+
+            self.delete_instance()
+
+            if recalculate:
+                Game.recalculate_elo_since(timestamp=since)
+
+    def recalculate_elo_since(timestamp):
+        games = Game.select().where(
+            (Game.is_confirmed == 1) & (Game.completed_ts >= timestamp)
+        ).order_by(Game.completed_ts)
+
+        elo_logger.debug(f'recalculate_elo_since {timestamp}')
+        for g in games:
+            g.reverse_confirmation()
+
+        for g in games:
+            g.confirm()
+        elo_logger.debug(f'recalculate_elo_since complete')
+
 
 class PlayerGame(BaseModel):
     player = ForeignKeyField(Player, null=False, backref='playergame', on_delete='RESTRICT')
     game = ForeignKeyField(Game, null=False, backref='playergame', on_delete='CASCADE')
+    elo_after_game = SmallIntegerField(default=None, null=True)  # snapshot of what elo was after game concluded
 
 
 with db:

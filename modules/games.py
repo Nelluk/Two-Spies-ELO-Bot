@@ -6,10 +6,12 @@ import settings
 import peewee
 from modules.models import Game, Player
 import logging
-# import datetime
+import datetime
 
 logger = logging.getLogger('spiesbot.' + __name__)
 elo_logger = logging.getLogger('spiesbot.elo')
+
+yesterday = (datetime.datetime.now() + datetime.timedelta(hours=-24))
 
 
 class SpiesGame(commands.Converter):
@@ -77,8 +79,26 @@ class elo_games(commands.Cog):
         player.display_name = after.display_name
         player.save()
 
-    @commands.command(usage='@Opponent "Optional Game Name"', aliases=['loseto'])
+    @commands.command(usage='@Opponent [Losing Score] "Optional Game Name"', aliases=['loseto'])
     async def defeat(self, ctx, *input_args):
+        """Enter a game result
+
+        Use /loseto to enter a game where you are the loser, or /defeat to enter the game where you are the winner.
+
+        If a winner is claiming a game, the loser must use /loseto to confirm the result and finalize the ELO changes. Pending games
+        will auto-confirm after a period of time.
+
+        Ranked games are assumed to be first-to-3, with possible scores of 3-0, 3-1, or 3-2. Enter the losing player's score as the second argument.
+        This can be omitted if you are confirming a loss.
+
+        You can enter a game name, such as the invite code word pair, at the end of the command.
+
+        **Example:**
+        /defeat @Nelluk 2 - Claim a 3-2 win against Nelluk
+        /loseto @DuffyDood 1 - Acknowledge a 3-1 loss against DuffyDood.
+        /loseto @DuffyDood - Confirm an already-claimed loss
+        /defeat @Nelluk 0 Loud Wire - Enter a 3-0 claim and include a game name
+        """
         game_name = None
         args = list(input_args)
         if not args:
@@ -154,6 +174,32 @@ class elo_games(commands.Cog):
         leaderboard, leaderboard_size = await self.bot.loop.run_in_executor(None, process_leaderboard)
 
         await utilities.paginate(self.bot, ctx, title=f'**{lb_title}**\n{leaderboard_size} ranked players', message_list=leaderboard, page_start=0, page_end=12, page_size=12)
+
+    @commands.command(usage='game_id')
+    async def delete(self, ctx, game: SpiesGame = None):
+        """Deletes a game
+
+        You can delete a game if you are the winner and the win was claimed in the last 24 hours.
+        Staff can delete any completed games.
+
+        ELO changes will be reversed and the ELO changes for any games that had been claimed subsequent to the deleted game will be recalculated.
+
+        **Example:**
+        `/delete 25`
+        """
+        if not game:
+            return await ctx.send(f'Game ID not provided. Usage: __`{ctx.prefix}delete GAME_ID`__')
+
+        if settings.is_staff(ctx) or (game.winning_player.discord_id == ctx.author.id and game.win_claimed_ts > yesterday):
+            pass
+        else:
+            return await ctx.send(f'To delete a game you must be server staff, or be the winner of a game claimed in the last 24 hours.')
+
+        gid = game.id
+        async with ctx.typing():
+            await self.bot.loop.run_in_executor(None, game.delete_game)
+            # Allows bot to remain responsive while this large operation is running.
+            await ctx.send(f'Game with ID {gid} has been deleted and team/player ELO changes have been reverted, if applicable.')
 
 
 def setup(bot):
