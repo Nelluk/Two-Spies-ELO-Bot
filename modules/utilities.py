@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 import logging
 import asyncio
-# import settings
+import re
 import modules.models as models
 
 logger = logging.getLogger('spiesbot.' + __name__)
@@ -15,6 +15,18 @@ def connect():
     else:
         logger.debug('reusing db connection')
         return False
+
+
+def escape_role_mentions(input: str):
+    # like escape_mentions but allow user mentions. disallows everyone/here/role
+
+    return re.sub(r'@(everyone|here|&[0-9]{17,21})', '@\u200b\\1', str(input))
+
+
+def escape_everyone_here_roles(input: str):
+    # escapes @everyone and @here
+
+    return re.sub(r'@(everyone|here)', '@\u200b\\1', str(input))
 
 
 async def paginate(bot, ctx, title, message_list, page_start=0, page_end=10, page_size=10):

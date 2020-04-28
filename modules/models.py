@@ -85,6 +85,44 @@ class Player(BaseModel):
 
         return query
 
+    def string_matches(player_string: str):
+        # Returns QuerySet containing players in current guild matching string. Searches against discord mention ID first, then exact discord name match,
+        # then falls back to substring match on name/nick
+
+        try:
+            p_id = int(player_string.strip('<>!@'))
+        except ValueError:
+            pass
+        else:
+            # lookup either on <@####> mention string or raw ID #
+            query_by_id = Player.select().where(
+                (Player.discord_id == p_id)
+            )
+            if query_by_id.count() > 0:
+                return query_by_id
+
+        if len(player_string.split('#', 1)[0]) > 2:
+            discord_str = player_string.split('#', 1)[0]
+            # If query is something like 'Nelluk#7034', use just the 'Nelluk' to match against discord_name.
+            # This happens if user does an @Mention then removes the @ character
+        else:
+            discord_str = player_string
+
+        name_exact_match = Player.select(Player).where(
+            (Player.name ** discord_str)  # ** is case-insensitive
+        )
+
+        if name_exact_match.count() == 1:
+            # String matches DiscordUser.name exactly
+            return name_exact_match
+
+        name_substring_match = PlayerGame.select(PlayerGame.player, fn.COUNT('*').alias('games_played')).join(Player).where(
+            (Player.name.contains(player_string))
+        ).group_by(PlayerGame.player).order_by(-SQL('games_played'))
+
+        if name_substring_match.count() > 0:
+            return [l.player for l in name_substring_match]
+
 
 class Game(BaseModel):
     name = TextField(null=True)

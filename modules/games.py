@@ -94,10 +94,10 @@ class elo_games(commands.Cog):
         You can enter a game name, such as the invite code word pair, at the end of the command.
 
         **Example:**
-        /defeat @Nelluk 2 - Claim a 3-2 win against Nelluk
-        /loseto @DuffyDood 1 - Acknowledge a 3-1 loss against DuffyDood.
-        /loseto @DuffyDood - Confirm an already-claimed loss
-        /defeat @Nelluk 0 Loud Wire - Enter a 3-0 claim and include a game name
+        `[p]defeat @Nelluk 2` - Claim a 3-2 win against Nelluk
+        `[p]loseto @DuffyDood 1` - Acknowledge a 3-1 loss against DuffyDood.
+        `[p]loseto @DuffyDood` - Confirm an already-claimed loss
+        `[p]defeat @Nelluk 0 Loud Wire` - Enter a 3-0 claim and include a game name
         """
         game_name = None
         args = list(input_args)
@@ -156,6 +156,8 @@ class elo_games(commands.Cog):
 
     @commands.command()
     async def lb(self, ctx):
+        """Display leaderboard"""
+
         leaderboard = []
         lb_title = 'Two Spies Leaderboard'
         date_cutoff = settings.date_cutoff
@@ -185,7 +187,7 @@ class elo_games(commands.Cog):
         ELO changes will be reversed and the ELO changes for any games that had been claimed subsequent to the deleted game will be recalculated.
 
         **Example:**
-        `/delete 25`
+        `[p]delete 25`
         """
         if not game:
             return await ctx.send(f'Game ID not provided. Usage: __`{ctx.prefix}delete GAME_ID`__')
@@ -200,6 +202,69 @@ class elo_games(commands.Cog):
             await self.bot.loop.run_in_executor(None, game.delete_game)
             # Allows bot to remain responsive while this large operation is running.
             await ctx.send(f'Game with ID {gid} has been deleted and team/player ELO changes have been reverted, if applicable.')
+
+    @commands.command(brief='See details on a player', usage='player_name', aliases=['elo', 'rank'])
+    async def player(self, ctx, *args):
+        """See your own player card or the card of another player
+        This also will find results based on a game-code or in-game name, if set.
+
+        **Examples**
+        `[p]player` - See your own player card
+        `[p]player Nelluk` - See Nelluk's card
+        """
+
+        args_list = list(args)
+        if len(args_list) == 0:
+            # Player looking for info on themselves
+            args_list.append(f'<@{ctx.author.id}>')
+
+        # Otherwise look for a player matching whatever they entered
+        player_mention = ' '.join(args_list)
+        player_mention_safe = utilities.escape_role_mentions(player_mention)
+
+        player_results = Player.string_matches(player_string=player_mention)
+        if len(player_results) > 1:
+            p_names = [p.name for p in player_results]
+            p_names_str = '**, **'.join(p_names[:10])
+            return await ctx.send(f'Found {len(player_results)} players matching *{player_mention_safe}*. Be more specific or use an @Mention.\nFound: **{p_names_str}**')
+        elif len(player_results) == 0:
+            # No Player matches - check for guild membership
+            guild_matches = await utilities.get_guild_member(ctx, player_mention)
+            if len(guild_matches) > 1:
+                p_names = [p.display_name for p in guild_matches]
+                p_names_str = '**, **'.join(p_names[:10])
+                return await ctx.send(f'There is more than one member found with name *{player_mention_safe}*. Be more specific or use an @Mention.\nFound: **{p_names_str}**')
+            if len(guild_matches) == 0:
+                return await ctx.send(f'Could not find *{player_mention_safe}* by Discord name or ID.')
+
+            return await ctx.send(f'*{guild_matches[0].display_name}* was found but has no game history.')
+        else:
+            player = player_results[0]
+
+        def async_create_player_embed():
+            utilities.connect()
+            wins, losses = player.get_record()
+            rank, lb_length = player.leaderboard_rank(settings.date_cutoff)
+
+            if rank is None:
+                rank_str = 'Unranked'
+            else:
+                rank_str = f'{rank} of {lb_length}'
+
+            results_str = f'ELO: {player.elo}\nW\u00A0{wins}\u00A0/\u00A0L\u00A0{losses}'
+
+            embed = discord.Embed(description=f'__Player card for <@{player.discord_id}>__')
+            embed.add_field(name='**Results**', value=results_str)
+            embed.add_field(name='**Ranking**', value=rank_str)
+
+            guild_member = ctx.guild.get_member(player.discord_id)
+            if guild_member:
+                embed.set_thumbnail(url=guild_member.avatar_url_as(size=512))
+
+            return embed
+
+        embed = await self.bot.loop.run_in_executor(None, async_create_player_embed)
+        await ctx.send(embed=embed)
 
 
 def setup(bot):

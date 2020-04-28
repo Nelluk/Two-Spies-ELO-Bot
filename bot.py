@@ -177,7 +177,7 @@ if __name__ == '__main__':
         logger.debug(f'Command invoked: {ctx.message.clean_content}. By {ctx.message.author.name} in {ctx.channel.id} {ctx.channel.name} on {ctx.guild.name}')
 
     initial_extensions = ['modules.games', 'modules.help', 'modules.matchmaking', 'modules.administration', 'modules.misc']
-    initial_extensions = ['modules.games']
+    initial_extensions = ['modules.games', 'modules.customhelp']
     for extension in initial_extensions:
         bot.load_extension(extension)
 
