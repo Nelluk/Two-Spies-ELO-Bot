@@ -1,6 +1,6 @@
 import datetime
 # import discord
-import re
+# import re
 # import psycopg2
 from peewee import *
 from playhouse.postgres_ext import *
@@ -30,6 +30,25 @@ class Player(BaseModel):
     elo_max = SmallIntegerField(default=1000)
     is_banned = BooleanField(default=False)
 
+    def leaderboard_rank(self, date_cutoff):
+        # Returns player's position in the leaderboard, and total size of leaderboard
+
+        # TODO: This could be replaced with Postgresql Window functions to have the DB calculate the rank.
+        # Advantages: Probably moderately more efficient, and will resolve ties in a sensible way
+        # But no idea how to write the query :/
+        # http://docs.peewee-orm.com/en/latest/peewee/query_examples.html#find-the-top-three-revenue-generating-facilities
+
+        query = Player.leaderboard(date_cutoff=date_cutoff)
+
+        player_found = False
+        for counter, p in enumerate(query.tuples()):
+            if p[0] == self.id:
+                player_found = True
+                break
+
+        rank = counter + 1 if player_found else None
+        return (rank, query.count())
+
     def wins(self):
 
         q = Game.select().where(
@@ -56,8 +75,8 @@ class Player(BaseModel):
         else:
             elo_field = Player.elo
 
-        query = Player.select().join(Game).where(
-            (Game.is_confirmed == 1) & (Game.date > date_cutoff) & (Player.is_banned == 0)
+        query = Player.select().join(PlayerGame).join(Game).where(
+            (Game.is_confirmed == 1) & (Game.completed_ts > date_cutoff) & (Player.is_banned == 0)
         ).distinct().order_by(-elo_field)
 
         if query.count() < 10:
@@ -90,6 +109,9 @@ class Game(BaseModel):
             # Attempted to input a game with no losing score - not allowed
             game.delete_instance()
             return None, False
+        if created:
+            PlayerGame.create(player=winning_player, game=game)
+            PlayerGame.create(player=losing_player, game=game)
         return game, created
 
     def confirm(self):

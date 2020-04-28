@@ -137,6 +137,7 @@ class elo_games(commands.Cog):
     @commands.command()
     async def lb(self, ctx):
         leaderboard = []
+        lb_title = 'Two Spies Leaderboard'
         date_cutoff = settings.date_cutoff
 
         def process_leaderboard():
@@ -152,7 +153,7 @@ class elo_games(commands.Cog):
 
         leaderboard, leaderboard_size = await self.bot.loop.run_in_executor(None, process_leaderboard)
 
-        print(leaderboard)
+        await utilities.paginate(self.bot, ctx, title=f'**{lb_title}**\n{leaderboard_size} ranked players', message_list=leaderboard, page_start=0, page_end=12, page_size=12)
 
 
 def setup(bot):
