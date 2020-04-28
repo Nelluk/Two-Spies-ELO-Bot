@@ -29,6 +29,33 @@ def escape_everyone_here_roles(input: str):
     return re.sub(r'@(everyone|here)', '@\u200b\\1', str(input))
 
 
+async def wait_for_confirmation(bot, ctx, game, losing_member):
+
+    sent_message = await ctx.send(f'Waiting for confirmation from {losing_member.mention}:')
+    await sent_message.add_reaction('✅')
+    await sent_message.add_reaction('❌')
+
+    def check(reaction, user):
+        e = str(reaction.emoji)
+        return ((user == losing_member) and (reaction.message.id == sent_message.id) and e.startswith(('✅', '❌')))
+
+    try:
+        reaction, user = await bot.wait_for('reaction_add', timeout=600.0, check=check)
+    except asyncio.TimeoutError:
+        await sent_message.remove_reaction('❌', bot.user)
+        await sent_message.remove_reaction('✅', bot.user)
+        await ctx.send('No reaction detected in time. This game will be automatically confirmed. If the game should not be confirmed please contact your opponent or server staff.')
+        return True
+
+    else:
+        if '✅' in str(reaction.emoji):
+            await sent_message.remove_reaction('❌', bot.user)
+            return True
+        elif '❌' in str(reaction.emoji):
+            await sent_message.remove_reaction('✅', bot.user)
+            return False
+
+
 async def paginate(bot, ctx, title, message_list, page_start=0, page_end=10, page_size=10):
     # Allows user to page through a long list of messages with reactions
     # message_list should be a [(List of, two-item tuples)]. Each tuple will be split into an embed field name/value

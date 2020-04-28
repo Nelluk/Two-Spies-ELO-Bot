@@ -25,6 +25,7 @@ bot = None
 run_tasks = True  # if set as False via command line option, tasks should check this and skip
 
 # bot invite URL https://discordapp.com/oauth2/authorize?client_id=703986191254683728&scope=bot
+# dev bot URL https://discordapp.com/oauth2/authorize?client_id=704776406323953765&scope=bot
 
 
 config = {'default':
