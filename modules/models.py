@@ -123,6 +123,8 @@ class Player(BaseModel):
         if name_substring_match.count() > 0:
             return [l.player for l in name_substring_match]
 
+        return []
+
 
 class Game(BaseModel):
     name = TextField(null=True)
