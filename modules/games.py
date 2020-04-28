@@ -4,7 +4,7 @@ import modules.utilities as utilities
 import settings
 # import modules.exceptions as exceptions
 import peewee
-from modules.models import Game, db, Player
+from modules.models import Game, Player
 import logging
 # import datetime
 
@@ -133,6 +133,26 @@ class elo_games(commands.Cog):
             game.confirm()
             return await ctx.send(f'Game {game.id} has been confirmed with <@{winning_player.discord_id}> ({winning_player.elo} +{game.elo_change_winner}) '
                 f'defeating <@{losing_player.discord_id}> ({losing_player.elo} {game.elo_change_loser}). Good game! ')
+
+    @commands.command()
+    async def lb(self, ctx):
+        leaderboard = []
+        date_cutoff = settings.date_cutoff
+
+        def process_leaderboard():
+            utilities.connect()
+            leaderboard_query = Player.leaderboard(date_cutoff=date_cutoff)
+
+            for counter, player in enumerate(leaderboard_query[:2000]):
+                wins, losses = player.get_record()
+                leaderboard.append(
+                    (f'{(counter + 1):>3}. {player.name}', f'`ELO {player.elo}\u00A0\u00A0\u00A0\u00A0W {wins} / L {losses}`')
+                )
+            return leaderboard, leaderboard_query.count()
+
+        leaderboard, leaderboard_size = await self.bot.loop.run_in_executor(None, process_leaderboard)
+
+        print(leaderboard)
 
 
 def setup(bot):

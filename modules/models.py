@@ -30,6 +30,42 @@ class Player(BaseModel):
     elo_max = SmallIntegerField(default=1000)
     is_banned = BooleanField(default=False)
 
+    def wins(self):
+
+        q = Game.select().where(
+            (Game.is_confirmed == 1) & (Game.winning_player == self)
+        )
+
+        return q
+
+    def losses(self):
+        q = Game.select().where(
+            (Game.is_confirmed == 1) & (Game.losing_player == self)
+        )
+
+        return q
+
+    def get_record(self):
+
+        return (self.wins().count(), self.losses().count())
+
+    def leaderboard(date_cutoff, max_flag: bool = False):
+
+        if max_flag:
+            elo_field = Player.elo_max
+        else:
+            elo_field = Player.elo
+
+        query = Player.select().join(Game).where(
+            (Game.is_confirmed == 1) & (Game.date > date_cutoff) & (Player.is_banned == 0)
+        ).distinct().order_by(-elo_field)
+
+        if query.count() < 10:
+            # Include all registered players on leaderboard if not many games played
+            query = Player.select().order_by(-elo_field)
+
+        return query
+
 
 class Game(BaseModel):
     name = TextField(null=True)
@@ -104,5 +140,10 @@ class Game(BaseModel):
         return elo_delta
 
 
+class PlayerGame(BaseModel):
+    player = ForeignKeyField(Player, null=False, backref='playergame', on_delete='RESTRICT')
+    game = ForeignKeyField(Game, null=False, backref='playergame', on_delete='CASCADE')
+
+
 with db:
-    db.create_tables([Player, Game])
+    db.create_tables([Player, Game, PlayerGame])
