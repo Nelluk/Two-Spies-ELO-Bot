@@ -29,7 +29,7 @@ run_tasks = True  # if set as False via command line option, tasks should check 
 
 config = {'default':
                      {'helper_roles': ['Staff'],
-                      'mod_roles': ['Mod'],
+                      'mod_roles': ['Mod', 'Owner'],
                       'user_roles_level_4': [],  # power user/can do some fancy matchmaking things
                       'user_roles_level_3': ['@everyone'],  # full user, host/join anything
                       'user_roles_level_2': ['@everyone'],  # normal user, can't host all match sizes
