@@ -102,7 +102,7 @@ class elo_games(commands.Cog):
         game_name = None
         args = list(input_args)
         if not args:
-            return await ctx.send(f'**Usage:** `{ctx.prefix}{ctx.invoked_with} @Opponent [Losing Score] "Optional Game Name"')
+            return await ctx.send(f'**Usage:** `{ctx.prefix}{ctx.invoked_with} @Opponent [Losing Score] "Optional Game Name"`')
 
         losing_score = None
         for arg in args:
@@ -154,6 +154,7 @@ class elo_games(commands.Cog):
             return await ctx.send(f'Game {game.id} has been confirmed with <@{winning_player.discord_id}> ({winning_player.elo} +{game.elo_change_winner}) '
                 f'defeating <@{losing_player.discord_id}> ({losing_player.elo} {game.elo_change_loser}). Good game! ')
 
+    @settings.in_bot_channel_strict()
     @commands.command()
     async def lb(self, ctx):
         """Display leaderboard"""

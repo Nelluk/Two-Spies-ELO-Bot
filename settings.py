@@ -43,7 +43,7 @@ config = {'default':
             478571892832206869:  # Test server
                     {},
             656764377772457987:  # Two Spies server
-                    {}
+                    {'bot_channels_strict': [704748719098167467]},
           }
 
 
