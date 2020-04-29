@@ -159,7 +159,7 @@ class Game(BaseModel):
         winner_delta = self.calc_elo_delta(for_winner=True)
         loser_delta = self.calc_elo_delta(for_winner=False)
 
-        with db.atomic():
+        with db.atomic() as transaction:
             self.winning_player.elo = int(self.winning_player.elo + winner_delta)
             if self.winning_player.elo > self.winning_player.elo_max:
                 self.winning_player.elo_max = self.winning_player.elo
@@ -180,7 +180,11 @@ class Game(BaseModel):
                     playergame.elo_after_game = self.losing_player.elo
                 playergame.save()
 
-            self.save()
+            update_count = self.save()
+            if not update_count:
+                # Could happen if game is deleted while Game object is still in memory and then a confirm is attempted, usually if a user deletes a game during the auto-confirm time
+                transaction.rollback()
+                raise Game.DoesNotExist('Game can not be found. No ELO changes saved.')
 
     def calc_elo_delta(self, for_winner=True):
         max_elo_delta = 32  # elo 'k' value
