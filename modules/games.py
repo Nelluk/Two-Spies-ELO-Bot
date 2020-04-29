@@ -225,7 +225,6 @@ class elo_games(commands.Cog):
     @commands.command(brief='See details on a player', usage='player_name', aliases=['elo', 'rank'])
     async def player(self, ctx, *args):
         """See your own player card or the card of another player
-        This also will find results based on a game-code or in-game name, if set.
 
         **Examples**
         `[p]player` - See your own player card
