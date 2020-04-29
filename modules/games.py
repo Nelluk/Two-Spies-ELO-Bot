@@ -152,6 +152,12 @@ class elo_games(commands.Cog):
 
             confirm_msg = await ctx.send(f'Game {game.id} created and waiting for defeated player <@{losing_player.discord_id}> to confirm loss. React below.')
             confirm_status = await utilities.wait_for_confirmation(self.bot, ctx, game=game, losing_member=guild_matches[0], message=confirm_msg)
+
+            check_game_query = Game.select().where(Game.id == game.id)
+            if not check_game_query.exists():
+                # without this check, game can still be merilly .confirmed() which will cause elo changes but still no game record, if someone deletes the game before confirm
+                return await ctx.send(f'Game {game.id} cannot be found. Most likely it was deleted by a user while waiting for confirmation.')
+
             if confirm_status:
                 confirm_win = True
             else:
@@ -278,6 +284,26 @@ class elo_games(commands.Cog):
 
         embed = await self.bot.loop.run_in_executor(None, async_create_player_embed)
         await ctx.send(embed=embed)
+
+    @commands.command(aliases=['dbb'])
+    @commands.is_owner()
+    async def backup_db(self, ctx):
+        """*Owner*: Backup PSQL database to a file
+
+        Intended to be used when a change to the ELO math is made to apply to all games retroactively
+        """
+        import subprocess
+        from subprocess import PIPE
+
+        async with ctx.typing():
+            await ctx.send('Executing backup script')
+            process = subprocess.run(['/home/nelluk/backup_spies_db.sh'], stdout=PIPE, stderr=PIPE)
+            if process.returncode == 0:
+                logger.info('Backup script executed')
+                return await ctx.send(f'Execution successful: {str(process.stdout)}')
+            else:
+                logger.error('Error during execution')
+                return await ctx.send(f'Error during execution: {str(process.stderr)}')
 
 
 def setup(bot):
