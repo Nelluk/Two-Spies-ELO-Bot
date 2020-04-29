@@ -124,6 +124,9 @@ class elo_games(commands.Cog):
         if target_discord_member.id == ctx.author.id:
             return await ctx.send('Stop beating yourself up.')
 
+        if target_discord_member.bot:
+            return await ctx.send('Nice try, bot-bully.')
+
         if len(args) > 1:
             # Combine all args after the first one into a game name
             game_name = ' '.join(args[1:])
