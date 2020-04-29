@@ -8,8 +8,8 @@ from playhouse.postgres_ext import *
 import settings
 import logging
 
-logger = logging.getLogger('spybot.' + __name__)
-elo_logger = logging.getLogger('spybot.elo')
+logger = logging.getLogger('spiesbot.' + __name__)
+elo_logger = logging.getLogger('spiesbot.elo')
 
 db = PostgresqlDatabase(settings.psql_db, autorollback=True, user=settings.psql_user, autoconnect=False)
 
@@ -261,6 +261,24 @@ class Game(BaseModel):
         for g in games:
             g.confirm()
         elo_logger.debug(f'recalculate_elo_since complete')
+
+    def recalculate_all_elo():
+        # Reset all ELOs to 1000,  and re-run Game.declare_winner() on all qualifying games
+
+        logger.warn('Resetting and recalculating all ELO')
+        elo_logger.info(f'recalculate_all_elo')
+
+        with db.atomic():
+            Player.update(elo=1000, elo_max=1000).execute()
+
+            games = Game.select().where(
+                (Game.is_confirmed == 1)
+            ).order_by(Game.completed_ts)
+
+            for game in games:
+                game.confirm()
+
+        elo_logger.info(f'recalculate_all_elo complete')
 
 
 class PlayerGame(BaseModel):
