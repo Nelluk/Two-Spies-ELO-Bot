@@ -147,21 +147,21 @@ class elo_games(commands.Cog):
             if not created:
                 return await ctx.send(f'There is already an unconfirmed game with these two opponents. Game {game.id} must be confirmed or deleted before another game is entered.')
 
-            await ctx.send(f'Game {game.id} created and waiting for defeated player <@{losing_player.discord_id}> to confirm loss. '
-                f'Use `{ctx.prefix}loseto @{winning_player.name}` to confirm loss.')
-            confirm_status = await utilities.wait_for_confirmation(self.bot, ctx, game=game, losing_member=guild_matches[0])
+            confirm_msg = await ctx.send(f'Game {game.id} created and waiting for defeated player <@{losing_player.discord_id}> to confirm loss. React below.')
+            confirm_status = await utilities.wait_for_confirmation(self.bot, ctx, game=game, losing_member=guild_matches[0], message=confirm_msg)
             if confirm_status:
-                game.confirm()
-                return await ctx.send(f'Game {game.id} has been confirmed with <@{winning_player.discord_id}> ({winning_player.elo} +{game.elo_change_winner}) '
-                    f'defeating <@{losing_player.discord_id}> ({losing_player.elo} {game.elo_change_loser}). Good game! ')
-
+                confirm_win = True
             else:
                 await ctx.send(f'Confirmation has been *rejected*. Game {game.id} is still pending. Contact your opponent <@{winning_player.discord_id}> or server staff '
                     f'to resolve the dispute. To manually confirm the game please use the command `{ctx.prefix}loseto @{winning_player.name}`')
-        else:
+        if confirm_win:
+            # not using an else since confirm_win value can change after it is checked as False
             game.confirm()
-            return await ctx.send(f'Game {game.id} has been confirmed with <@{winning_player.discord_id}> ({winning_player.elo} +{game.elo_change_winner}) '
-                f'defeating <@{losing_player.discord_id}> ({losing_player.elo} {game.elo_change_loser}). Good game! ')
+            rank_winner, _ = winning_player.leaderboard_rank(date_cutoff=settings.date_cutoff)
+            rank_loser, _ = losing_player.leaderboard_rank(date_cutoff=settings.date_cutoff)
+
+            return await ctx.send(f'Game {game.id} has been confirmed with <@{winning_player.discord_id}> `({winning_player.elo} +{game.elo_change_winner} 📈{rank_winner})` '
+                f'defeating <@{losing_player.discord_id}> `({losing_player.elo} {game.elo_change_loser} 📉{rank_loser})`. Good game! ')
 
     @settings.in_bot_channel_strict()
     @commands.command()
