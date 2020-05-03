@@ -32,7 +32,7 @@ class SpiesGame(commands.Converter):
             return game
 
 
-class elo_games(commands.Cog):
+class games(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
@@ -311,4 +311,4 @@ class elo_games(commands.Cog):
 
 
 def setup(bot):
-    bot.add_cog(elo_games(bot))
+    bot.add_cog(games(bot))
