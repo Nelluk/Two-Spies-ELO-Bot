@@ -122,12 +122,12 @@ if __name__ == '__main__':
         # Should prevent bot from being able to be controlled via DM
         return ctx.guild is not None
 
-    # @bot.check
-    # async def restrict_banned_users(ctx):
-    #     if ctx.author.id in settings.discord_id_ban_list or discord.utils.get(ctx.author.roles, name='ELO Banned'):
-    #         await ctx.send('You are banned from using this bot. :kissing_heart:')
-    #         return False
-    #     return True
+    @bot.check
+    async def restrict_banned_users(ctx):
+        if discord.utils.get(ctx.author.roles, name='ELO Banned'):
+            await ctx.send('You are banned from using this bot. :kissing_heart:')
+            return False
+        return True
 
     @bot.check
     async def cooldown_check(ctx):

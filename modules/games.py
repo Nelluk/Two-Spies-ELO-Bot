@@ -49,6 +49,7 @@ class elo_games(commands.Cog):
 
         banned_role = discord.utils.get(before.guild.roles, name='ELO Banned')
         if banned_role not in before.roles and banned_role in after.roles:
+            utilities.connect()
             try:
                 player = player_query.get()
             except peewee.DoesNotExist:
@@ -58,6 +59,7 @@ class elo_games(commands.Cog):
             logger.info(f'ELO Ban added for player {player.id} {player.name}')
 
         if banned_role in before.roles and banned_role not in after.roles:
+            utilities.connect()
             try:
                 player = player_query.get()
             except peewee.DoesNotExist:
@@ -72,6 +74,7 @@ class elo_games(commands.Cog):
 
         logger.debug(f'Attempting to change displayname for {before.display_name} to {after.display_name}')
         # update name in guild's Player record
+        utilities.connect()
         try:
             player = player_query.get()
         except peewee.DoesNotExist:
@@ -140,6 +143,9 @@ class elo_games(commands.Cog):
             losing_player, _ = Player.get_or_create(discord_id=ctx.author.id, defaults={'name': ctx.author.display_name})
             winning_player, _ = Player.get_or_create(discord_id=target_discord_member.id, defaults={'name': target_discord_member.display_name})
             confirm_win = True
+
+        if losing_player.is_banned or winning_player.is_banned:
+            return await ctx.send(f'Your opponent has the **ELO Banned** role and can not participate in ELO Games.')
 
         game, created = Game.get_or_create_pending_game(winning_player=winning_player, losing_player=losing_player, name=game_name, losing_score=losing_score)
         if not game:
