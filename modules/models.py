@@ -161,8 +161,6 @@ class Game(BaseModel):
 
     def confirm(self, bypass_check=False):
         # Calculate elo changes for a newly-confirmed game and write new values to database
-        winner_delta = self.calc_elo_delta(for_winner=True)
-        loser_delta = self.calc_elo_delta(for_winner=False)
 
         if self.is_confirmed and not bypass_check:
             # checks to make sure we aren't confirming an already-confirmed game.
@@ -170,12 +168,20 @@ class Game(BaseModel):
             # This is probably only used in recalculate_all_elo
             raise ValueError('Cannot confirm game - is_confirmed is already marked as True')
 
+        logger.debug(f'Confirming game {self.id}')
+        elo_logger.debug(f'Confirm game {self.id}')
+
+        winner_delta = self.calc_elo_delta(for_winner=True)
+        loser_delta = self.calc_elo_delta(for_winner=False)
+
         with db.atomic() as transaction:
+            elo_logger.debug(f'Winning player {self.winning_player.name} going from {self.winning_player.elo} to {int(self.winning_player.elo + winner_delta)}')
             self.winning_player.elo = int(self.winning_player.elo + winner_delta)
             if self.winning_player.elo > self.winning_player.elo_max:
                 self.winning_player.elo_max = self.winning_player.elo
             self.elo_change_winner = winner_delta
 
+            elo_logger.debug(f'Losing player {self.losing_player.name} going from {self.losing_player.elo} to {int(self.losing_player.elo + loser_delta)}')
             self.losing_player.elo = int(self.losing_player.elo + loser_delta)
             self.elo_change_loser = loser_delta
 
