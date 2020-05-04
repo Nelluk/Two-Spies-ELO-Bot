@@ -203,6 +203,8 @@ class Game(BaseModel):
                 transaction.rollback()
                 raise Game.DoesNotExist('Game can not be found. No ELO changes saved.')
 
+            return self.winning_player.elo, self.losing_player.elo
+
     def calc_elo_delta(self, for_winner=True):
         max_elo_delta = 32  # elo 'k' value
 

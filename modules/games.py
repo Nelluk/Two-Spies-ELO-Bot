@@ -174,15 +174,15 @@ class games(commands.Cog):
         if confirm_win:
             # not using an else since confirm_win value can change after it is checked as False
             try:
-                game.confirm()
+                winning_player_new_elo, losing_player_new_elo = game.confirm()
             except ValueError:
                 return await ctx.send(f'Game {game.id} is already marked as confirmed.')
 
             rank_winner, _ = winning_player.leaderboard_rank(date_cutoff=settings.date_cutoff)
             rank_loser, _ = losing_player.leaderboard_rank(date_cutoff=settings.date_cutoff)
 
-            return await ctx.send(f'Game {game.id} has been confirmed with <@{winning_player.discord_id}> `({winning_player.elo} +{game.elo_change_winner} 📈{rank_winner})` '
-                f'defeating <@{losing_player.discord_id}> `({losing_player.elo} {game.elo_change_loser} 📉{rank_loser})`. Good game! ')
+            return await ctx.send(f'Game {game.id} has been confirmed with <@{winning_player.discord_id}> `({winning_player_new_elo} +{game.elo_change_winner} 📈{rank_winner})` '
+                f'defeating <@{losing_player.discord_id}> `({losing_player_new_elo} {game.elo_change_loser} 📉{rank_loser})`. Good game! ')
 
     @settings.in_bot_channel_strict()
     @commands.command()
