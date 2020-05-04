@@ -143,6 +143,11 @@ class Game(BaseModel):
             value = value.strip('\"').strip('\'').strip('”').strip('“').title()[:35].strip() if value else value
         return super().__setattr__(name, value)
 
+    def refresh(self):
+        # refresh object in memory with fresh copy from database
+
+        return type(self).get(self._pk_expr())
+
     def get_or_create_pending_game(winning_player, losing_player, name=None, losing_score=None):
         game, created = Game.get_or_create(winning_player=winning_player, losing_player=losing_player, is_confirmed=False, defaults={'name': name, 'losing_score': losing_score})
         if created and losing_score is None:
@@ -154,10 +159,16 @@ class Game(BaseModel):
             PlayerGame.create(player=losing_player, game=game)
         return game, created
 
-    def confirm(self):
+    def confirm(self, bypass_check=False):
         # Calculate elo changes for a newly-confirmed game and write new values to database
         winner_delta = self.calc_elo_delta(for_winner=True)
         loser_delta = self.calc_elo_delta(for_winner=False)
+
+        if self.is_confirmed and not bypass_check:
+            # checks to make sure we aren't confirming an already-confirmed game.
+            # if bypass_check=True, confirming will be allowed to continue even if is_confirmed is set.
+            # This is probably only used in recalculate_all_elo
+            raise ValueError('Cannot confirm game - is_confirmed is already marked as True')
 
         with db.atomic() as transaction:
             self.winning_player.elo = int(self.winning_player.elo + winner_delta)
@@ -280,7 +291,7 @@ class Game(BaseModel):
             ).order_by(Game.completed_ts)
 
             for game in games:
-                game.confirm()
+                game.confirm(bypass_check=True)
 
         elo_logger.info(f'recalculate_all_elo complete')
 

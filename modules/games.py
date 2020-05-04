@@ -159,17 +159,24 @@ class games(commands.Cog):
             confirm_msg = await ctx.send(f'Game {game.id} created and waiting for defeated player <@{losing_player.discord_id}> to confirm loss. React below.')
             confirm_status = await utilities.wait_for_confirmation(self.bot, ctx, game=game, losing_member=guild_matches[0], message=confirm_msg)
 
+            try:
+                game = game.refresh()  # Update game from database in case is_confirmed flag changed during reaction wait time
+            except peewee.DoesNotExist:
+                return await ctx.send(f'Game {game.id} cannot be found. Most likely it was deleted by a user while waiting for confirmation. No ELO has changed.')
+
             if confirm_status:
                 confirm_win = True
             else:
-                await ctx.send(f'Confirmation has been *rejected*. Game {game.id} is still pending. Contact your opponent <@{winning_player.discord_id}> or server staff '
+                if game.is_confirmed:
+                    return await ctx.send(f'Game {game.id} is already marked as confirmed.')
+                return await ctx.send(f'Confirmation has been *rejected*. Game {game.id} is still pending. Contact your opponent <@{winning_player.discord_id}> or server staff '
                     f'to resolve the dispute. To manually confirm the game please use the command `{ctx.prefix}loseto @{winning_player.name}`')
         if confirm_win:
             # not using an else since confirm_win value can change after it is checked as False
             try:
                 game.confirm()
-            except peewee.DoesNotExist:
-                return await ctx.send(f'Game {game.id} cannot be found. Most likely it was deleted by a user while waiting for confirmation. No ELO has changed.')
+            except ValueError:
+                return await ctx.send(f'Game {game.id} is already marked as confirmed.')
 
             rank_winner, _ = winning_player.leaderboard_rank(date_cutoff=settings.date_cutoff)
             rank_loser, _ = losing_player.leaderboard_rank(date_cutoff=settings.date_cutoff)
