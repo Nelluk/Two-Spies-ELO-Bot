@@ -137,11 +137,13 @@ class games(commands.Cog):
         if ctx.invoked_with == 'defeat':
             winning_player, _ = Player.get_or_create(discord_id=ctx.author.id, defaults={'name': ctx.author.display_name})
             losing_player, _ = Player.get_or_create(discord_id=target_discord_member.id, defaults={'name': target_discord_member.display_name})
+            winning_member = ctx.author
             confirm_win = False
         else:
             # invoked with 'loseto', so swap player targets and confirm the game in one step
             losing_player, _ = Player.get_or_create(discord_id=ctx.author.id, defaults={'name': ctx.author.display_name})
             winning_player, _ = Player.get_or_create(discord_id=target_discord_member.id, defaults={'name': target_discord_member.display_name})
+            winning_member = ctx.guild.get_member(target_discord_member.id)
             confirm_win = True
 
         if losing_player.is_banned or winning_player.is_banned:
@@ -180,6 +182,17 @@ class games(commands.Cog):
 
             rank_winner, _ = winning_player.leaderboard_rank(date_cutoff=settings.date_cutoff)
             rank_loser, _ = losing_player.leaderboard_rank(date_cutoff=settings.date_cutoff)
+
+            champion_role = discord.utils.get(ctx.guild.roles, name=settings.guild_setting(ctx.guild.id, 'champion_role_name'))
+            hero_role = discord.utils.get(ctx.guild.roles, name=settings.guild_setting(ctx.guild.id, 'hero_role_name'))
+
+            if rank_winner == 1 and champion_role and winning_member and champion_role not in winning_member.roles:
+                for member in hero_role.members:
+                    await member.remove_roles(champion_role, reason='Dethroned champion')
+                await winning_member.add_roles(champion_role, reason='New champion')
+
+            if hero_role and winning_player_new_elo > 1200 and hero_role not in winning_member.roles:
+                await winning_member.add_roles(hero_role, reason='New Hero')
 
             return await ctx.send(f'Game {game.id} has been confirmed with <@{winning_player.discord_id}> `({winning_player_new_elo} +{game.elo_change_winner} 📈{rank_winner})` '
                 f'defeating <@{losing_player.discord_id}> `({losing_player_new_elo} {game.elo_change_loser} 📉{rank_loser})`. Good game! ')

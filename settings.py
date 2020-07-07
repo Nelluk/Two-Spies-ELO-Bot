@@ -40,11 +40,13 @@ config = {'default':
                       'bot_channels_private': [],  # channels here will pass any bot channel check, and not linked in bot messages
                       'bot_channels_strict': [],  # channels where the most limited commands work, like leaderboards
                       'bot_channels': [],  # channels were more common commands work, like matchmaking
-                      'game_announce_channel': None},
+                      'game_announce_channel': None,
+                      'hero_role_name': 'ELO Hero',
+                      'champion_role_name': 'Ranked #1'},
             478571892832206869:  # Test server
                     {},
             656764377772457987:  # Two Spies server
-                    {'bot_channels_strict': [704748719098167467]},
+                    {'bot_channels_strict': [704748719098167467]}
           }
 
 
@@ -76,9 +78,9 @@ def guild_setting(guild_id: int, setting_name: str):
 
 
 def get_matching_roles(discord_member, list_of_role_names):
-        # Given a Discord.Member and a ['List of', 'Role names'], return set of role names that the Member has.polytopia_id
-        member_roles = [x.name for x in discord_member.roles]
-        return set(member_roles).intersection(list_of_role_names)
+    # Given a Discord.Member and a ['List of', 'Role names'], return set of role names that the Member has.polytopia_id
+    member_roles = [x.name for x in discord_member.roles]
+    return set(member_roles).intersection(list_of_role_names)
 
 
 def get_user_level(ctx, user=None):
