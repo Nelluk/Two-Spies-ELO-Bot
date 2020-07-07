@@ -4,7 +4,7 @@ import modules.utilities as utilities
 import settings
 # import modules.exceptions as exceptions
 import peewee
-from modules.models import Game, Player
+from modules.models import Game, Player, db
 import logging
 import datetime
 
@@ -328,6 +328,26 @@ class games(commands.Cog):
             else:
                 logger.error('Error during execution')
                 return await ctx.send(f'Error during execution: {str(process.stderr)}')
+
+    @commands.is_owner()
+    @commands.command()
+    async def quit(self, ctx):
+        """ *Owner*: Close database connection and quit bot gracefully """
+
+        message = ''
+        try:
+            if db.close():
+                message = 'db connecton closing normally'
+            else:
+                message = 'db connection was already closed'
+
+        except peewee.PeeweeException as e:
+            message = f'Error during post_invoke_cleanup db.close(): {e}'
+        finally:
+            logger.info(message)
+
+        await ctx.send('Shutting down')
+        await self.bot.close()
 
 
 def setup(bot):
