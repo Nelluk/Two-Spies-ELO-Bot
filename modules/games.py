@@ -188,11 +188,23 @@ class games(commands.Cog):
 
             if rank_winner == 1 and champion_role and winning_member and champion_role not in winning_member.roles:
                 for member in hero_role.members:
-                    await member.remove_roles(champion_role, reason='Dethroned champion')
-                await winning_member.add_roles(champion_role, reason='New champion')
+                    try:
+                        await member.remove_roles(champion_role, reason='Dethroned champion')
+                    except discord.DiscordException as e:
+                        logger.warn(f'Could not remove champion role: {e}')
+                        await ctx.send(f'**Warning** Tried to remove champion role from {member.display_name} but got a discord error: {e}')
+                try:
+                    await winning_member.add_roles(champion_role, reason='New champion')
+                except discord.DiscordException as e:
+                    logger.warn(f'Could not apply champion role: {e}')
+                    await ctx.send(f'**Warning** Tried to apply champion role to {winning_member.display_name} but got a discord error: {e}')
 
             if hero_role and winning_player_new_elo > 1200 and hero_role not in winning_member.roles:
-                await winning_member.add_roles(hero_role, reason='New Hero')
+                try:
+                    await winning_member.add_roles(hero_role, reason='New Hero')
+                except discord.DiscordException as e:
+                    logger.warn(f'Could not apply Hero role: {e}')
+                    await ctx.send(f'**Warning** Tried to apply Hero role to {winning_member.display_name} but got a discord error: {e}')
 
             return await ctx.send(f'Game {game.id} has been confirmed with <@{winning_player.discord_id}> `({winning_player_new_elo} +{game.elo_change_winner} 📈{rank_winner})` '
                 f'defeating <@{losing_player.discord_id}> `({losing_player_new_elo} {game.elo_change_loser} 📉{rank_loser})`. Good game! ')
