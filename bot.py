@@ -155,9 +155,6 @@ if __name__ == '__main__':
 
         ignored = (commands.CommandNotFound, commands.UserInputError, commands.CheckFailure)
 
-        if isinstance(exc, commands.CommandNotFound) and ctx.invoked_with[:4] == 'join':
-            await ctx.send(f'Cannot understand command. Make sure to include a space and a numeric game ID.\n*Example:* `{ctx.prefix}join 11234`')
-
         # Anything in ignored will return and prevent anything happening.
         if isinstance(exc, ignored):
             logger.warn(f'Exception on ignored list raised in {ctx.command}. {exc}')
@@ -169,14 +166,13 @@ if __name__ == '__main__':
         else:
             exception_str = ''.join(traceback.format_exception(etype=type(exc), value=exc, tb=exc.__traceback__))
             logger.critical(f'Ignoring exception in command {ctx.command}: {exc} {exception_str}', exc_info=True)
-            await ctx.send(f'Unhandled error: {exc}')
+            await ctx.send(f'Unhandled error (notifying <@{settings.owner_id}>): {exc}')
 
     @bot.before_invoke
     async def pre_invoke_setup(ctx):
         utilities.connect()
         logger.debug(f'Command invoked: {ctx.message.clean_content}. By {ctx.message.author.name} in {ctx.channel.id} {ctx.channel.name} on {ctx.guild.name}')
 
-    initial_extensions = ['modules.games', 'modules.help', 'modules.matchmaking', 'modules.administration', 'modules.misc']
     initial_extensions = ['modules.games', 'modules.customhelp']
     for extension in initial_extensions:
         bot.load_extension(extension)
