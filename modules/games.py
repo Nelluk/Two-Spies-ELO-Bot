@@ -210,28 +210,35 @@ class games(commands.Cog):
                 f'defeating <@{losing_player.discord_id}> `({losing_player_new_elo} {game.elo_change_loser} 📉{rank_loser})`. Good game! ')
 
     @settings.in_bot_channel_strict()
-    @commands.command()
+    @commands.command(aliases=['lbmax'])
     async def lb(self, ctx):
-        """Display leaderboard"""
+        """Display leaderboard - use lbmax to sort by maximum ELO achieved"""
 
         leaderboard = []
         lb_title = 'Two Spies Leaderboard'
         date_cutoff = settings.date_cutoff
+        if ctx.invoked_with == 'lbmax':
+            max_flag = True
+            max_str = ' (by Maximum ELO Achieved)'
+        else:
+            max_flag = False
+            max_str = ''
 
         def process_leaderboard():
             utilities.connect()
-            leaderboard_query = Player.leaderboard(date_cutoff=date_cutoff)
+            leaderboard_query = Player.leaderboard(date_cutoff=date_cutoff, max_flag=max_flag)
 
             for counter, player in enumerate(leaderboard_query[:2000]):
                 wins, losses = player.get_record()
+                elo_field = player.elo_max if max_flag else player.elo
                 leaderboard.append(
-                    (f'{(counter + 1):>3}. {player.name}', f'`ELO {player.elo}\u00A0\u00A0\u00A0\u00A0W {wins} / L {losses}`')
+                    (f'{(counter + 1):>3}. {player.name}', f'`ELO {elo_field}\u00A0\u00A0\u00A0\u00A0W {wins} / L {losses}`')
                 )
             return leaderboard, leaderboard_query.count()
 
         leaderboard, leaderboard_size = await self.bot.loop.run_in_executor(None, process_leaderboard)
 
-        await utilities.paginate(self.bot, ctx, title=f'**{lb_title}**\n{leaderboard_size} ranked players', message_list=leaderboard, page_start=0, page_end=12, page_size=12)
+        await utilities.paginate(self.bot, ctx, title=f'**{lb_title}**\n{leaderboard_size} ranked players{max_str}', message_list=leaderboard, page_start=0, page_end=12, page_size=12)
 
     @commands.command(usage='game_id')
     async def delete(self, ctx, game: SpiesGame = None):
@@ -306,7 +313,8 @@ class games(commands.Cog):
             else:
                 rank_str = f'{rank} of {lb_length}'
 
-            results_str = f'ELO: {player.elo}\nW\u00A0{wins}\u00A0/\u00A0L\u00A0{losses}'
+            max_str = f'(Max: {player.elo_max})\n' if player.elo_max > player.elo else ''
+            results_str = f'ELO: {player.elo}\n{max_str}W\u00A0{wins}\u00A0/\u00A0L\u00A0{losses}'
 
             embed = discord.Embed(description=f'__Player card for <@{player.discord_id}>__')
             embed.add_field(name='**Results**', value=results_str)
