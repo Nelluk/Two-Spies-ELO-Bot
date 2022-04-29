@@ -36,7 +36,7 @@ config = {'default':
                       'user_roles_level_2': ['@everyone'],  # normal user, can't host all match sizes
                       'user_roles_level_1': ['@everyone'],  # restricted user/newbie
                       'display_name': 'Two Spies',
-                      'command_prefix': '/',
+                      'command_prefix': '!',
                       'bot_channels_private': [],  # channels here will pass any bot channel check, and not linked in bot messages
                       'bot_channels_strict': [],  # channels where the most limited commands work, like leaderboards
                       'bot_channels': [],  # channels were more common commands work, like matchmaking
